@@ -112,7 +112,7 @@ def main(eval_args):
 
                 plt.imshow(output_tiled)
                 plt.savefig("../sample_%s.jpg"%str(ind))
-                plt.show()
+                # plt.show()
     else:
         pass
 
