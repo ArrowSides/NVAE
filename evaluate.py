@@ -63,6 +63,7 @@ def main(eval_args):
     # did not have this variable.
     model.load_state_dict(checkpoint['state_dict'], strict=False)
     model = model.cuda()
+    print(model)
 
     logging.info('args = %s', args)
     logging.info('num conv layers: %d', len(model.all_conv_layers))
@@ -87,9 +88,9 @@ def main(eval_args):
         logging.info('final valid nelbo in bpd %f', valid_nelbo * bpd_coeff)
         logging.info('final valid neg log p in bpd %f', valid_neg_log_p * bpd_coeff)
 
-    else:
+    elif eval_args.eval_mode == 'sample':
         bn_eval_mode = not eval_args.readjust_bn
-        num_samples = 16
+        num_samples = 1
         with torch.no_grad():
             n = int(np.floor(np.sqrt(num_samples)))
             set_bn(model, bn_eval_mode, num_samples=36, t=eval_args.temp, iter=500)
@@ -110,7 +111,10 @@ def main(eval_args):
                 output_tiled = np.squeeze(output_tiled)
 
                 plt.imshow(output_tiled)
+                plt.savefig("../sample_%s.jpg"%str(ind))
                 plt.show()
+    else:
+        pass
 
 
 if __name__ == '__main__':

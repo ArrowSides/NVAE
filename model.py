@@ -355,7 +355,7 @@ class AutoEncoder(nn.Module):
         ftr = self.enc0(s)                            # this reduces the channel dimension
         param0 = self.enc_sampler[idx_dec](ftr)
         mu_q, log_sig_q = torch.chunk(param0, 2, dim=1)
-        dist = Normal(mu_q, log_sig_q)   # for the first approx. posterior
+        dist = Normal(mu_q, log_sig_q)   # for the first approx. posterior *******
         z, _ = dist.sample()
         log_q_conv = dist.log_p(z)
 
