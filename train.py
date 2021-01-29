@@ -76,7 +76,7 @@ def main(args):
     else:
         global_step, init_epoch = 0, 0
 
-    for epoch in range(init_epoch, args.epochs):
+    for epoch in range(init_epoch, args.epochs): # epochs cycle
         # update lrs.
         if args.distributed:
             train_queue.sampler.set_epoch(global_step + args.seed)
