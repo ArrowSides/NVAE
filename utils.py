@@ -248,6 +248,8 @@ def reconstruction_loss(decoder, x, crop=False):
 
 
 def tile_image(batch_image, n):
+    # print(batch_image.size(0))
+    # print(n)
     assert n * n == batch_image.size(0)
     channels, height, width = batch_image.size(1), batch_image.size(2), batch_image.size(3)
     batch_image = batch_image.view(n, n, channels, height, width)

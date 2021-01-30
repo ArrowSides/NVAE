@@ -11,6 +11,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from time import time
 
+import math
+
 from torch.multiprocessing import Process
 from torch.cuda.amp import autocast
 
@@ -63,7 +65,7 @@ def main(eval_args):
     # did not have this variable.
     model.load_state_dict(checkpoint['state_dict'], strict=False)
     model = model.cuda()
-    print(model)
+    # print(model)
 
     logging.info('args = %s', args)
     logging.info('num conv layers: %d', len(model.all_conv_layers))
@@ -113,18 +115,116 @@ def main(eval_args):
                 plt.imshow(output_tiled)
                 plt.savefig("../sample_%s.jpg"%str(ind))
                 # plt.show()
+    elif eval_args.eval_mode == 'recon':
+        bn_eval_mode = not eval_args.readjust_bn
+        # num_samples = 1
+        args.data = eval_args.data
+        train_queue, valid_queue, num_classes = datasets.get_loaders(args)
+        model.eval()
+        with torch.no_grad():
+            n = 1
+            # n = int(np.floor(np.sqrt(num_samples)))
+            # set_bn(model, bn_eval_mode, num_samples=36, t=eval_args.temp, iter=500)
+            ind = 0
+            for step, x in enumerate(train_queue):
+                # print(step)
+                x = x[0] if len(x) > 1 else x
+                # n = int(math.sqrt(len(x)))
+                # print(n)
+                # print(type(x))
+                # print(len(x))
+                x = x.cuda()
+                temp_ind = ind
+                for indx in range(len(x)):
+                    temp_output_img = []
+                    temp_output_img.append(x[indx].cpu().numpy().tolist())
+                    temp_output_img = torch.Tensor(temp_output_img).cuda()
+                    output_tiled = utils.tile_image(temp_output_img, n).cpu().numpy().transpose(1, 2, 0)
+                    # logging.info('recon time per batch: %0.3f sec', (end - start))
+                    output_tiled = np.asarray(output_tiled * 255, dtype=np.uint8)
+                    output_tiled = np.squeeze(output_tiled)
+
+                    plt.imshow(output_tiled)
+                    plt.savefig("../raw_%s.jpg"%str(ind))
+                    ind = ind + 1
+                # change bit length
+                x = utils.pre_process(x, 8)
+                # print(x)
+                ############################
+                # raw_tiled = utils.tile_image(x, n).cpu().numpy().transpose(1, 2, 0)
+                # logging.info('recon time per batch: %0.3f sec', (end - start))
+                # raw_tiled = np.asarray(raw_tiled * 255, dtype=np.uint8)
+                # raw_tiled = np.squeeze(raw_tiled)
+
+                # plt.imshow(raw_tiled)
+                # plt.savefig("../raw_sample_%s.jpg"%str(ind))
+                # plt.clf()
+                ############################
+
+
+
+
+                torch.cuda.synchronize()
+                start = time()
+                with autocast():
+                    logits = model.recon(x)
+                output = model.decoder_output(logits)
+                output_img = output.mean if isinstance(output, torch.distributions.bernoulli.Bernoulli) \
+                    else output.sample()
+                torch.cuda.synchronize()
+                end = time()
+                # print(type(output_img))
+                # print(len(output_img))
+                ind = temp_ind
+                for indx in range(len(output_img)):
+                    temp_output_img = []
+                    temp_output_img.append(output_img[indx].cpu().numpy().tolist())
+                    temp_output_img = torch.Tensor(temp_output_img).cuda()
+                    output_tiled = utils.tile_image(temp_output_img, n).cpu().numpy().transpose(1, 2, 0)
+                    logging.info('recon time per batch: %0.3f sec', (end - start))
+                    output_tiled = np.asarray(output_tiled * 255, dtype=np.uint8)
+                    output_tiled = np.squeeze(output_tiled)
+
+                    plt.imshow(output_tiled)
+                    plt.savefig("../sample_%s.jpg"%str(ind))
+                    ind = ind + 1
+                break
+
+        # print(eval_args.data)
+        # with torch.no_grad():
+        #     n = int(np.floor(np.sqrt(num_samples)))
+        #     set_bn(model, bn_eval_mode, num_samples=36, t=eval_args.temp, iter=500)
+        #     for ind in range(10):     # sampling is repeated.
+        #         torch.cuda.synchronize()
+        #         start = time()
+        #         with autocast():
+        #             logits = model.sample(num_samples, eval_args.temp)
+        #         output = model.decoder_output(logits)
+        #         output_img = output.mean if isinstance(output, torch.distributions.bernoulli.Bernoulli) \
+        #             else output.sample()
+        #         torch.cuda.synchronize()
+        #         end = time()
+
+        #         output_tiled = utils.tile_image(output_img, n).cpu().numpy().transpose(1, 2, 0)
+        #         logging.info('sampling time per batch: %0.3f sec', (end - start))
+        #         output_tiled = np.asarray(output_tiled * 255, dtype=np.uint8)
+        #         output_tiled = np.squeeze(output_tiled)
+
+        #         plt.imshow(output_tiled)
+        #         plt.savefig("../sample_%s.jpg"%str(ind))
     else:
         pass
+
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser('encoder decoder examiner')
     # experimental results
     parser.add_argument('--checkpoint', type=str, default='/tmp/expr/checkpoint.pt',
-                        help='location of the checkpoint')
+                        help='location of the checkpoint load')
     parser.add_argument('--save', type=str, default='/tmp/expr',
-                        help='location of the checkpoint')
-    parser.add_argument('--eval_mode', type=str, default='sample', choices=['sample', 'evaluate'],
+                        help='location of the checkpoint save')
+    parser.add_argument('--eval_mode', type=str, default='sample', choices=['sample', 'evaluate', 'recon'],
                         help='evaluation mode. you can choose between sample or evaluate.')
     parser.add_argument('--eval_on_train', action='store_true', default=False,
                         help='Settings this to true will evaluate the model on training data.')
