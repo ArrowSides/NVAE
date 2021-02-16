@@ -352,8 +352,10 @@ class AutoEncoder(nn.Module):
         combiner_cells_s.reverse()
 
         idx_dec = 0
+        print(s)
         ftr = self.enc0(s)                            # this reduces the channel dimension
         param0 = self.enc_sampler[idx_dec](ftr)
+        print(ftr)
         mu_q, log_sig_q = torch.chunk(param0, 2, dim=1)
         dist = Normal(mu_q, log_sig_q)   # for the first approx. posterior *******
         z, _ = dist.sample()
@@ -444,7 +446,7 @@ class AutoEncoder(nn.Module):
     # reconstruct new data
     def recon(self, x): 
         s = self.stem(2 * x - 1.0)
-
+        print("recon begin")
         # perform pre-processing
         for cell in self.pre_process:
             s = cell(s)
@@ -464,7 +466,9 @@ class AutoEncoder(nn.Module):
         combiner_cells_s.reverse()
 
         idx_dec = 0
+        # print(s)
         ftr = self.enc0(s)                            # this reduces the channel dimension
+        # print(ftr)
         param0 = self.enc_sampler[idx_dec](ftr)
         mu_q, log_sig_q = torch.chunk(param0, 2, dim=1)
         dist = Normal(mu_q, log_sig_q)   # for the first approx. posterior *******
